@@ -1,0 +1,268 @@
+<title>현지거점 업무관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: fixed sidebar (workspace + task filters) | main column (search bar, overview KPIs, milestone rail, task board, timeline) */
+:root{
+  --bg:#f3f5f9; --panel:#ffffff; --panel-2:#eef1f7; --line:#dde2ec;
+  --fg:#18203a; --muted:#5d6784; --accent:#4257d6; --accent-soft:#e3e7fb;
+  --ok:#1d8a5a; --warn:#b36b00; --info:#2f6fd0;
+  --sans:"IBM Plex Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d1120; --panel:#151a2e; --panel-2:#1b2139; --line:#262d48;
+  --fg:#e6e9f5; --muted:#8c94b3; --accent:#7f90ff; --accent-soft:#232b52;
+  --ok:#4cc38a; --warn:#e3a646; --info:#6ea2ff; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1120; --panel:#151a2e; --panel-2:#1b2139; --line:#262d48;
+  --fg:#e6e9f5; --muted:#8c94b3; --accent:#7f90ff; --accent-soft:#232b52;
+  --ok:#4cc38a; --warn:#e3a646; --info:#6ea2ff; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.55}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100%}
+aside{background:var(--panel);border-right:1px solid var(--line);padding:20px 12px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow-y:auto}
+.brand{padding:0 8px 18px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.brand b{display:block;font-size:13px;letter-spacing:.06em}
+.brand span{color:var(--muted);font-size:12px}
+.nav-h{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:14px 8px 6px}
+.nav button{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;border-radius:6px;padding:6px 8px;cursor:pointer;color:var(--fg)}
+.nav button:hover{background:var(--panel-2)}
+.nav button[aria-current="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nav .n{font-family:var(--mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none;margin-right:8px}
+.nav .lbl{display:flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+main{padding-block:20px 60px;padding-inline:clamp(16px,3vw,40px);min-width:0}
+.top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:28px}
+.top input{flex:1 1 260px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+.meta{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:clamp(22px,3vw,30px);margin:6px 0 6px;text-wrap:balance}
+h2{font-size:17px;margin:0;display:flex;align-items:baseline;gap:10px}
+h2 small{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--muted);font-weight:500}
+.lead{color:var(--muted);margin:0 0 22px;max-width:70ch}
+section{margin-top:34px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.kpi .tag{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--accent);background:var(--accent-soft);padding:2px 7px;border-radius:4px}
+.kpi .v{font-size:40px;font-weight:700;color:var(--accent);line-height:1.1;margin-top:10px;font-variant-numeric:tabular-nums}
+.kpi .u{font-size:12px;color:var(--muted)}
+.kpi p{margin:8px 0 0;font-size:12px;color:var(--muted)}
+.rail-wrap{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 18px;margin-top:12px;overflow-x:auto}
+.rail{display:flex;min-width:max-content;position:relative}
+.rail::before{content:"";position:absolute;left:8px;right:8px;top:7px;border-top:1px dashed var(--line)}
+.ms{width:104px;flex:none;position:relative;font-size:12px}
+.ms i{display:block;width:15px;height:15px;border-radius:50%;border:2px solid var(--accent);background:var(--panel);position:relative}
+.ms.done i{background:var(--accent)}
+.ms .d{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px}
+.ms .l{color:var(--accent);padding-right:10px}
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0;cursor:pointer;text-align:left}
+.card:hover{border-color:var(--accent)}
+.card .row{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.chip{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);padding:2px 7px;border-radius:4px}
+.st{font-size:11px;display:inline-flex;align-items:center;gap:5px}
+.st::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.st.ok{color:var(--ok)}.st.warn{color:var(--warn)}.st.info{color:var(--info)}
+.card h3{margin:10px 0 4px;font-size:16px}
+.card p{margin:0;color:var(--muted);font-size:13px}
+.card .cnt{margin-top:10px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tl{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.tl-item{display:grid;grid-template-columns:92px minmax(0,1fr);gap:14px;padding:12px 16px;border-top:1px solid var(--line)}
+.tl-item:first-child{border-top:0}
+.tl-item .d{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tl-item b{font-weight:600}
+.tl-item .sub{color:var(--muted);font-size:13px}
+.tl-item a{color:var(--accent)}
+.tl-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:2px}
+.empty{padding:28px 16px;color:var(--muted);text-align:center}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{background:var(--accent);color:var(--panel);border:0;border-radius:7px;padding:7px 14px;font-weight:600;cursor:pointer}
+.btn.ghost{background:none;color:var(--accent);border:1px solid var(--line)}
+form.add{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:12px}
+form.add label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+form.add input,form.add select,form.add textarea{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 9px;color:var(--fg)}
+form.add .wide{grid-column:1/-1}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+.menu{display:none}
+@media (max-width:820px){
+  .app{grid-template-columns:1fr}
+  aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .tl-item{grid-template-columns:1fr;gap:2px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <aside>
+    <div class="brand"><b id="brandName">ASTRA · ODA OFFICE</b><span id="brandSub">현지거점 사무소</span></div>
+    <div class="nav-h">Workspace</div>
+    <nav class="nav" id="navMain">
+      <button data-view="overview" aria-current="true"><span class="lbl">개요</span></button>
+      <button data-view="timeline"><span class="lbl">전체 타임라인</span><span class="n" id="nActions">0</span></button>
+    </nav>
+    <div class="nav-h">과업주제 · Tasks</div>
+    <nav class="nav" id="navTasks"><div class="note" style="padding:0 8px">과업이 아직 없습니다.</div></nav>
+  </aside>
+
+  <main>
+    <div class="top">
+      <input id="q" type="search" placeholder="액션·문서 검색 (예: MOM, 초청연수)" aria-label="검색">
+      <span class="meta" id="metaDates"></span>
+      <button class="btn ghost" id="themeBtn" type="button">테마</button>
+    </div>
+
+    <div id="viewOverview">
+      <div class="eyebrow">— Operations overview —</div>
+      <h1 id="title">현지거점 사무소</h1>
+      <p class="lead" id="desc">과업주제별 연락·실행·지원·통번역·행사 이력을 한곳에서 관리합니다.</p>
+
+      <div class="kpis">
+        <div class="kpi"><span class="tag">ACTIONS</span><div class="v" id="kActions">0</div><span class="u">건</span><p>기준일 이후 정리된 수행 액션</p></div>
+        <div class="kpi"><span class="tag">DOCUMENTS</span><div class="v" id="kDocs">0</div><span class="u">종</span><p>원문 링크가 있는 문서</p></div>
+        <div class="kpi"><span class="tag">SINCE</span><div class="v" id="kSince">D+0</div><span class="u">일</span><p id="kSinceP">기준일 이후 경과</p></div>
+        <div class="kpi"><span class="tag">NEXT</span><div class="v" id="kNext">—</div><span class="u" id="kNextD"></span><p id="kNextP">예정된 이정표 없음</p></div>
+      </div>
+
+      <section>
+        <h2>주요 이정표 <small>MILESTONES</small></h2>
+        <div class="rail-wrap"><div class="rail" id="rail"><div class="empty">이정표가 아직 없습니다.</div></div></div>
+      </section>
+
+      <section>
+        <h2>과업주제별 현황 <small>TASK BOARD</small></h2>
+        <div class="board" id="board"><div class="empty">과업주제가 추가되면 여기에 카드로 표시됩니다.</div></div>
+      </section>
+    </div>
+
+    <div id="viewTimeline" hidden>
+      <div class="toolbar">
+        <div><div class="eyebrow" id="tlEyebrow">— Timeline —</div><h1 id="tlTitle">전체 타임라인</h1></div>
+        <button class="btn" id="addBtn" type="button">+ 액션 기록</button>
+      </div>
+      <form class="add" id="addForm" hidden>
+        <label>날짜<input id="fDate" type="date" required></label>
+        <label>과업주제<select id="fTask"></select></label>
+        <label>유형<select id="fType"><option>연락</option><option>실행</option><option>지원</option><option>통번역</option><option>행사</option><option>문서</option></select></label>
+        <label class="wide">제목<input id="fTitle" required placeholder="예: SATI 원장 면담 — MOU 일정 협의"></label>
+        <label class="wide">내용<textarea id="fDetail" rows="2"></textarea></label>
+        <label class="wide">원문 링크 (선택)<input id="fUrl" type="url" placeholder="https://drive.google.com/..."></label>
+        <div class="wide" style="display:flex;gap:8px"><button class="btn" type="submit">저장</button><button class="btn ghost" type="button" id="cancelAdd">취소</button><span class="note" id="formMsg"></span></div>
+      </form>
+      <div class="tl" id="tl"><div class="empty">기록된 액션이 없습니다. “+ 액션 기록”으로 첫 항목을 추가하세요.</div></div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  const S = {config:{}, tasks:[], actions:[], milestones:[], view:"overview", task:null, q:""};
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+  const parse = s => { const d = new Date(String(s) + "T00:00:00"); return isNaN(d) ? null : d; };
+  const days = (a,b) => Math.round((b - a) / 864e5);
+  const md = s => { const d = parse(s); return d ? (d.getMonth()+1) + "." + d.getDate() : ""; };
+  const ymd = s => { const d = parse(s); return d ? d.getFullYear() + ". " + (d.getMonth()+1) + ". " + d.getDate() + "." : ""; };
+  const taskName = id => (S.tasks.find(t => t.id === id) || {}).name || "미분류";
+  const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : "";
+
+  function matches(a){
+    if (S.task && a.task !== S.task) return false;
+    if (!S.q) return true;
+    const hay = [a.title, a.detail, a.type, taskName(a.task)].join(" ").toLowerCase();
+    return hay.includes(S.q);
+  }
+
+  function render(){
+    const c = S.config;
+    if (c.name) $("brandName").textContent = c.name;
+    if (c.subtitle) $("brandSub").textContent = c.subtitle;
+    if (c.title) $("title").textContent = c.title;
+    if (c.description) $("desc").textContent = c.description;
+    const base = parse(c.baseDate);
+    $("metaDates").textContent = (base ? "기점 " + ymd(c.baseDate) + " · " : "") + "기준 " + ymd(new Date().toISOString().slice(0,10));
+    $("kActions").textContent = S.actions.length;
+    $("nActions").textContent = S.actions.length;
+    $("kDocs").textContent = S.actions.filter(a => safeUrl(a.url)).length;
+    if (base){ $("kSince").textContent = "D+" + days(base, today()); $("kSinceP").textContent = ymd(c.baseDate) + " 이후 경과"; }
+
+    const ms = [...S.milestones].sort((a,b) => String(a.date).localeCompare(String(b.date)));
+    const next = ms.find(m => { const d = parse(m.date); return d && d >= today(); });
+    if (next){ const n = days(today(), parse(next.date)); $("kNext").textContent = n === 0 ? "D-day" : "D-" + n; $("kNextD").textContent = md(next.date) + "."; $("kNextP").textContent = next.label; }
+    else { $("kNext").textContent = "—"; $("kNextD").textContent = ""; $("kNextP").textContent = "예정된 이정표 없음"; }
+    $("rail").innerHTML = ms.length ? ms.map(m => {
+      const d = parse(m.date), done = m.done || (d && d < today());
+      return `<div class="ms${done ? " done" : ""}"><i></i><div class="d">${esc(md(m.date))}</div><div class="l">${esc(m.label)}</div></div>`;
+    }).join("") : `<div class="empty">이정표가 아직 없습니다.</div>`;
+
+    const count = id => S.actions.filter(a => a.task === id).length;
+    const tasks = [...S.tasks].sort((a,b) => (a.order ?? 99) - (b.order ?? 99));
+    $("navTasks").innerHTML = tasks.length ? tasks.map(t =>
+      `<button data-task="${esc(t.id)}" aria-current="${S.view === "timeline" && S.task === t.id}"><span class="lbl"><span class="dot"></span>${esc(t.name)}</span><span class="n">${count(t.id)}</span></button>`
+    ).join("") : `<div class="note" style="padding:0 8px">과업이 아직 없습니다.</div>`;
+    $("board").innerHTML = tasks.length ? tasks.map(t =>
+      `<button class="card" data-task="${esc(t.id)}"><div class="row"><span class="chip">${esc(t.kind || "TASK")}</span><span class="st ${esc(t.tone || "info")}">${esc(t.status || "진행 중")}</span></div><h3>${esc(t.name)}</h3><p>${esc(t.summary || "")}</p><div class="cnt">액션 ${count(t.id)}건</div></button>`
+    ).join("") : `<div class="empty">과업주제가 추가되면 여기에 카드로 표시됩니다.</div>`;
+    $("fTask").innerHTML = tasks.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("") || `<option value="">미분류</option>`;
+
+    document.querySelectorAll("#navMain button").forEach(b => b.setAttribute("aria-current", String(b.dataset.view === S.view && !(S.view === "timeline" && S.task))));
+    $("viewOverview").hidden = S.view !== "overview";
+    $("viewTimeline").hidden = S.view !== "timeline";
+    const t = S.tasks.find(x => x.id === S.task);
+    $("tlTitle").textContent = t ? t.name : "전체 타임라인";
+    $("tlEyebrow").textContent = t ? "— " + (t.kind || "Task") + " —" : "— Timeline —";
+    const list = S.actions.filter(matches).sort((a,b) => String(b.date).localeCompare(String(a.date)));
+    $("tl").innerHTML = list.length ? list.map(a => {
+      const u = safeUrl(a.url);
+      return `<div class="tl-item"><div class="d">${esc(a.date)}</div><div><div class="tl-tags"><span class="chip">${esc(a.type || "액션")}</span>${S.task ? "" : `<span class="chip">${esc(taskName(a.task))}</span>`}</div><b>${u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(a.title)}</a>` : esc(a.title)}</b>${a.detail ? `<div class="sub">${esc(a.detail)}</div>` : ""}</div></div>`;
+    }).join("") : `<div class="empty">${S.q || S.task ? "조건에 맞는 액션이 없습니다." : "기록된 액션이 없습니다. “+ 액션 기록”으로 첫 항목을 추가하세요."}</div>`;
+  }
+
+  document.addEventListener("click", e => {
+    const v = e.target.closest("[data-view]"), t = e.target.closest("[data-task]");
+    if (v){ S.view = v.dataset.view; S.task = null; render(); }
+    else if (t){ S.view = "timeline"; S.task = t.dataset.task; render(); window.scrollTo(0,0); }
+  });
+  $("q").addEventListener("input", e => { S.q = e.target.value.trim().toLowerCase(); if (S.q && S.view === "overview") S.view = "timeline"; render(); });
+  $("themeBtn").addEventListener("click", () => {
+    const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    r.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("theme", r.dataset.theme); } catch(_) {}
+  });
+  try { const th = localStorage.getItem("theme"); if (th) document.documentElement.dataset.theme = th; } catch(_) {}
+
+  render();
+
+  let db = null;
+  $("addBtn").addEventListener("click", () => {
+    $("addForm").hidden = false;
+    if (!$("fDate").value) $("fDate").value = new Date().toISOString().slice(0,10);
+    if (S.task) $("fTask").value = S.task;
+    $("formMsg").textContent = db ? "" : "로그인한 편집자만 저장할 수 있습니다.";
+  });
+  $("cancelAdd").addEventListener("click", () => { $("addForm").hidden = true; });
+  $("addForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!db){ $("formMsg").textContent = "저장소에 연결되지 않아 저장할 수 없습니다."; return; }
+    const row = { date: $("fDate").value, task: $("fTask").value, type: $("fType").value,
+      title: $("fTitle").value.trim(), detail: $("fDetail").value.trim(), url: $("fUrl").value.trim(), createdAt: new Date().toISOString() };
+    $("formMsg").textContent = "저장 중…";
+    try { await db.collection("actions").add(row); $("addForm").reset(); $("addForm").hidden = true; $("formMsg").textContent = ""; }
+    catch(err){ $("formMsg").textContent = "저장하지 못했습니다: " + (err && err.code === "permission_denied" ? "편집 권한이 없습니다." : (err && err.message) || "알 수 없는 오류"); }
+  });
+
+  (async () => {
+    db = window.claude && await window.claude.use("db");
+    if (!db) return;
+    const sub = (name, key) => db.collection(name).onSnapshot(snap => {
+      S[key] = snap.docs.map(d => Object.assign({id: d.id}, d.data())); render();
+    });
+    sub("tasks","tasks"); sub("actions","actions"); sub("milestones","milestones");
+    db.doc("config/office").onSnapshot(d => { S.config = d.exists ? d.data() : {}; render(); });
+  })();
+})();
+</script>
