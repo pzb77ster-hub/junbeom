@@ -87,7 +87,30 @@ form.add label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:v
 form.add input,form.add select,form.add textarea{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 9px;color:var(--fg)}
 form.add .wide{grid-column:1/-1}
 .note{font-size:12px;color:var(--muted);margin-top:8px}
-.menu{display:none}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 4px}
+.fbtn{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 11px;font-size:12px;cursor:pointer;color:var(--muted)}
+.fbtn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.tbl-wrap{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:500;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:10px 14px;border-top:1px solid var(--line);vertical-align:top}
+.tbl tr:first-child td{border-top:0}
+.tbl td.d{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.tbl a{color:var(--accent)}
+.tbl .sub{color:var(--muted);font-size:12px}
+.tbl .sel{user-select:all}
+.copy{background:none;border:1px solid var(--line);border-radius:4px;font-size:11px;padding:0 6px;margin-left:6px;cursor:pointer;color:var(--muted)}
+.rm{background:none;border:0;color:var(--muted);cursor:pointer;font-size:12px}
+.rm:hover{color:var(--warn)}
+.th-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:12px;display:grid;gap:12px}
+.th-card .stats{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.th-card .stats b{color:var(--fg);font-variant-numeric:tabular-nums}
+.th-card .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.th-card h4{margin:0 0 6px;font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.06em}
+.th-card ul{margin:0;padding-left:18px;font-size:13px}
+.th-card a{color:var(--accent)}
+.th-card .sub{color:var(--muted);font-size:12px}
+.th-card .jump{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;font-size:12px}
 @media (max-width:820px){
   .app{grid-template-columns:1fr}
   aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
@@ -103,6 +126,10 @@ form.add .wide{grid-column:1/-1}
     <nav class="nav" id="navMain">
       <button data-view="overview" aria-current="true"><span class="lbl">개요</span></button>
       <button data-view="timeline"><span class="lbl">전체 타임라인</span><span class="n" id="nActions">0</span></button>
+      <button data-view="documents"><span class="lbl">문서함</span><span class="n" id="n-documents">0</span></button>
+      <button data-view="library"><span class="lbl">자료실</span><span class="n" id="n-library">0</span></button>
+      <button data-view="contacts"><span class="lbl">관계자</span><span class="n" id="n-contacts">0</span></button>
+      <button data-view="reports"><span class="lbl">보고서</span><span class="n" id="n-reports">0</span></button>
     </nav>
     <div class="nav-h">과업주제 · Tasks</div>
     <nav class="nav" id="navTasks"><div class="note" style="padding:0 8px">과업이 아직 없습니다.</div></nav>
@@ -122,7 +149,7 @@ form.add .wide{grid-column:1/-1}
 
       <div class="kpis">
         <div class="kpi"><span class="tag">ACTIONS</span><div class="v" id="kActions">0</div><span class="u">건</span><p>기준일 이후 정리된 수행 액션</p></div>
-        <div class="kpi"><span class="tag">DOCUMENTS</span><div class="v" id="kDocs">0</div><span class="u">종</span><p>원문 링크가 있는 문서</p></div>
+        <div class="kpi"><span class="tag">DOCUMENTS</span><div class="v" id="kDocs">0</div><span class="u">종</span><p>문서함에 등록된 문서 (MOM·MOU·RD·PD 등)</p></div>
         <div class="kpi"><span class="tag">SINCE</span><div class="v" id="kSince">D+0</div><span class="u">일</span><p id="kSinceP">기준일 이후 경과</p></div>
         <div class="kpi"><span class="tag">NEXT</span><div class="v" id="kNext">—</div><span class="u" id="kNextD"></span><p id="kNextP">예정된 이정표 없음</p></div>
       </div>
@@ -143,6 +170,7 @@ form.add .wide{grid-column:1/-1}
         <div><div class="eyebrow" id="tlEyebrow">— Timeline —</div><h1 id="tlTitle">전체 타임라인</h1></div>
         <button class="btn" id="addBtn" type="button">+ 액션 기록</button>
       </div>
+      <div id="taskHead" hidden></div>
       <form class="add" id="addForm" hidden>
         <label>날짜<input id="fDate" type="date" required></label>
         <label>과업주제<select id="fTask"></select></label>
@@ -154,12 +182,48 @@ form.add .wide{grid-column:1/-1}
       </form>
       <div class="tl" id="tl"><div class="empty">기록된 액션이 없습니다. “+ 액션 기록”으로 첫 항목을 추가하세요.</div></div>
     </div>
+
+    <div id="viewList" hidden>
+      <div class="toolbar">
+        <div><div class="eyebrow" id="lsEyebrow"></div><h1 id="lsTitle"></h1></div>
+        <button class="btn" id="lsAddBtn" type="button">+ 추가</button>
+      </div>
+      <p class="lead" id="lsLead"></p>
+      <div class="filters" id="lsFilters"></div>
+      <form class="add" id="lsForm" hidden></form>
+      <div class="tbl-wrap"><table class="tbl" id="lsTable"></table></div>
+    </div>
   </main>
 </div>
 
 <script>
 (function(){
-  const S = {config:{}, tasks:[], actions:[], milestones:[], view:"overview", task:null, q:""};
+  const S = {config:{}, tasks:[], actions:[], milestones:[], documents:[], library:[], contacts:[], reports:[],
+    view:"overview", task:null, q:"", filter:null, armed:null};
+
+  // 목록형 화면 정의: 컬렉션 이름 = 화면 이름. fields는 입력 폼, cols는 표 열, group은 필터 칩 기준 필드.
+  const VIEWS = {
+    documents: { title:"문서함", eyebrow:"Documents", add:"+ 문서 등록", sort:"date", group:"kind",
+      lead:"MOM·MOU·RD·PD·공문 등 공식 문서를 과업주제와 함께 보관합니다. 제목을 누르면 원문이 열립니다.",
+      fields:[{k:"date",l:"날짜",t:"date",req:1},{k:"kind",l:"종류",t:"select",o:["MOM","MOU","RD","PD","공문","회의록","계약","기타"]},{k:"task",l:"과업주제",t:"task"},
+        {k:"title",l:"문서명",req:1,w:1},{k:"url",l:"원문 링크",t:"url",w:1},{k:"note",l:"메모",w:1}],
+      cols:[["날짜","date"],["종류","kind"],["문서명","title"],["과업","task"]] },
+    library: { title:"자료실", eyebrow:"Library", add:"+ 자료 추가", sort:"date", group:"category",
+      lead:"발표자료·사진·참고자료·템플릿처럼 공식 문서가 아닌 자료를 모아 둡니다.",
+      fields:[{k:"date",l:"날짜",t:"date"},{k:"category",l:"분류",t:"select",o:["발표자료","사진·영상","참고자료","템플릿","통번역본","기타"]},{k:"task",l:"과업주제",t:"task"},
+        {k:"title",l:"자료명",req:1,w:1},{k:"url",l:"링크",t:"url",w:1},{k:"note",l:"메모",w:1}],
+      cols:[["날짜","date"],["분류","category"],["자료명","title"],["과업","task"]] },
+    contacts: { title:"관계자", eyebrow:"Contacts", add:"+ 관계자 추가", sort:"org", group:"side",
+      lead:"한국 측·베트남 측 기관 담당자와 연락처를 과업주제별로 관리합니다.",
+      fields:[{k:"name",l:"이름",req:1},{k:"org",l:"기관",req:1},{k:"role",l:"직위·역할"},{k:"side",l:"구분",t:"select",o:["베트남 측","한국 측","현지 협력사","기타"]},
+        {k:"task",l:"주 과업",t:"task"},{k:"phone",l:"전화"},{k:"email",l:"이메일"},{k:"note",l:"메모",w:1}],
+      cols:[["이름","name"],["기관·직위","org"],["연락처","phone"],["과업","task"]] },
+    reports: { title:"보고서", eyebrow:"Reports", add:"+ 보고서 등록", sort:"date", group:"kind",
+      lead:"주간·월간 보고와 출장·결과 보고를 기간별로 정리합니다.",
+      fields:[{k:"date",l:"보고일",t:"date",req:1},{k:"kind",l:"종류",t:"select",o:["주간보고","월간보고","결과보고","출장보고","기타"]},{k:"period",l:"대상 기간",ph:"예: 9/29–10/5"},
+        {k:"title",l:"제목",req:1,w:1},{k:"summary",l:"요약",t:"textarea",w:1},{k:"url",l:"원문 링크",t:"url",w:1}],
+      cols:[["보고일","date"],["종류","kind"],["제목","title"],["기간","period"]] }
+  };
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
@@ -187,7 +251,8 @@ form.add .wide{grid-column:1/-1}
     $("metaDates").textContent = (base ? "기점 " + ymd(c.baseDate) + " · " : "") + "기준 " + ymd(new Date().toISOString().slice(0,10));
     $("kActions").textContent = S.actions.length;
     $("nActions").textContent = S.actions.length;
-    $("kDocs").textContent = S.actions.filter(a => safeUrl(a.url)).length;
+    $("kDocs").textContent = S.documents.length;
+    Object.keys(VIEWS).forEach(k => { $("n-" + k).textContent = S[k].length; });
     if (base){ $("kSince").textContent = "D+" + days(base, today()); $("kSinceP").textContent = ymd(c.baseDate) + " 이후 경과"; }
 
     const ms = [...S.milestones].sort((a,b) => String(a.date).localeCompare(String(b.date)));
@@ -212,7 +277,10 @@ form.add .wide{grid-column:1/-1}
     document.querySelectorAll("#navMain button").forEach(b => b.setAttribute("aria-current", String(b.dataset.view === S.view && !(S.view === "timeline" && S.task))));
     $("viewOverview").hidden = S.view !== "overview";
     $("viewTimeline").hidden = S.view !== "timeline";
+    $("viewList").hidden = !VIEWS[S.view];
+    if (VIEWS[S.view]) renderList();
     const t = S.tasks.find(x => x.id === S.task);
+    renderTaskHead(t);
     $("tlTitle").textContent = t ? t.name : "전체 타임라인";
     $("tlEyebrow").textContent = t ? "— " + (t.kind || "Task") + " —" : "— Timeline —";
     const list = S.actions.filter(matches).sort((a,b) => String(b.date).localeCompare(String(a.date)));
@@ -222,9 +290,92 @@ form.add .wide{grid-column:1/-1}
     }).join("") : `<div class="empty">${S.q || S.task ? "조건에 맞는 액션이 없습니다." : "기록된 액션이 없습니다. “+ 액션 기록”으로 첫 항목을 추가하세요."}</div>`;
   }
 
-  document.addEventListener("click", e => {
+  const hit = (row, keys) => !S.q || keys.map(k => k === "task" ? taskName(row.task) : row[k]).join(" ").toLowerCase().includes(S.q);
+  const linkTitle = r => { const u = safeUrl(r.url); return u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(r.title)}</a>` : esc(r.title); };
+
+  function cell(name, key, r){
+    if (key === "date") return `<td class="d">${esc(r.date || "")}</td>`;
+    if (key === "task") return `<td>${r.task ? `<button class="fbtn" data-task="${esc(r.task)}">${esc(taskName(r.task))}</button>` : ""}</td>`;
+    if (key === "title") return `<td><b>${linkTitle(r)}</b>${r.note || r.summary ? `<div class="sub">${esc(r.note || r.summary)}</div>` : ""}</td>`;
+    if (key === "kind" || key === "category") return `<td>${r[key] ? `<span class="chip">${esc(r[key])}</span>` : ""}</td>`;
+    if (name === "contacts" && key === "name") return `<td><b>${esc(r.name)}</b>${r.side ? `<div class="sub">${esc(r.side)}</div>` : ""}</td>`;
+    if (name === "contacts" && key === "org") return `<td>${esc(r.org)}${r.role ? `<div class="sub">${esc(r.role)}</div>` : ""}${r.note ? `<div class="sub">${esc(r.note)}</div>` : ""}</td>`;
+    if (name === "contacts" && key === "phone") return `<td>${[r.phone, r.email].filter(Boolean).map(x => `<div><span class="sel">${esc(x)}</span><button class="copy" type="button" data-copy="${esc(x)}">복사</button></div>`).join("")}</td>`;
+    return `<td>${esc(r[key] || "")}</td>`;
+  }
+
+  function renderList(){
+    const name = S.view, V = VIEWS[name];
+    $("lsTitle").textContent = V.title; $("lsEyebrow").textContent = "— " + V.eyebrow + " —";
+    $("lsLead").textContent = V.lead; $("lsAddBtn").textContent = V.add;
+    const groups = [...new Set(S[name].map(r => r[V.group]).filter(Boolean))];
+    $("lsFilters").innerHTML = groups.length > 1 ? [`<button class="fbtn" data-filter="" aria-pressed="${!S.filter}">전체</button>`]
+      .concat(groups.map(g => `<button class="fbtn" data-filter="${esc(g)}" aria-pressed="${S.filter === g}">${esc(g)}</button>`)).join("") : "";
+    const keys = V.fields.map(f => f.k);
+    const rows = S[name].filter(r => (!S.filter || r[V.group] === S.filter) && hit(r, keys))
+      .sort((a,b) => V.sort === "date" ? String(b.date).localeCompare(String(a.date)) : String(a[V.sort]).localeCompare(String(b[V.sort]), "ko"));
+    const head = `<tr>${V.cols.map(c => `<th>${c[0]}</th>`).join("")}<th></th></tr>`;
+    const body = rows.map(r => {
+      const key = name + ":" + r.id;
+      return `<tr>${V.cols.map(c => cell(name, c[1], r)).join("")}<td><button class="rm" type="button" data-rm="${esc(key)}">${S.armed === key ? "삭제 확인" : "삭제"}</button></td></tr>`;
+    }).join("");
+    $("lsTable").innerHTML = rows.length ? head + body
+      : `<tr><td class="empty">${S.q || S.filter ? "조건에 맞는 항목이 없습니다." : "아직 항목이 없습니다. “" + esc(V.add) + "”으로 첫 항목을 추가하세요."}</td></tr>`;
+  }
+
+  function buildForm(){
+    const V = VIEWS[S.view];
+    const opts = S.tasks.slice().sort((a,b) => (a.order ?? 99) - (b.order ?? 99)).map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("");
+    $("lsForm").innerHTML = V.fields.map(f => {
+      const id = "ls-" + f.k, req = f.req ? " required" : "", cls = f.w ? ' class="wide"' : "";
+      let ctl;
+      if (f.t === "select") ctl = `<select id="${id}"><option value=""></option>${f.o.map(o => `<option>${esc(o)}</option>`).join("")}</select>`;
+      else if (f.t === "task") ctl = `<select id="${id}"><option value="">미분류</option>${opts}</select>`;
+      else if (f.t === "textarea") ctl = `<textarea id="${id}" rows="3"${req}></textarea>`;
+      else ctl = `<input id="${id}" type="${f.t || "text"}"${req}${f.ph ? ` placeholder="${esc(f.ph)}"` : ""}>`;
+      return `<label${cls}>${esc(f.l)}${ctl}</label>`;
+    }).join("") + `<div class="wide" style="display:flex;gap:8px;align-items:center"><button class="btn" type="submit">저장</button><button class="btn ghost" type="button" id="lsCancel">취소</button><span class="note" id="lsMsg"></span></div>`;
+    const d = $("ls-date"); if (d && !d.value) d.value = new Date().toISOString().slice(0,10);
+    if (S.task && $("ls-task")) $("ls-task").value = S.task;
+  }
+
+  function renderTaskHead(t){
+    const el = $("taskHead");
+    if (!t || S.view !== "timeline"){ el.hidden = true; return; }
+    const of = k => S[k].filter(r => r.task === t.id);
+    const docs = of("documents"), people = of("contacts"), acts = of("actions");
+    const last = acts.map(a => a.date).sort().pop();
+    el.hidden = false;
+    el.innerHTML = `<div class="th-card">
+      <div class="row" style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span class="st ${esc(t.tone || "info")}">${esc(t.status || "진행 중")}</span></div>
+      ${t.summary ? `<div>${esc(t.summary)}</div>` : ""}
+      <div class="stats"><span>액션 <b>${acts.length}</b>건</span><span>문서 <b>${docs.length}</b>종</span><span>관계자 <b>${people.length}</b>명</span>${last ? `<span>최근 활동 <b>${esc(last)}</b></span>` : ""}</div>
+      <div class="cols">
+        <div><h4>관련 문서</h4>${docs.length ? `<ul>${docs.slice().sort((a,b) => String(b.date).localeCompare(String(a.date))).slice(0,5).map(r => `<li>${linkTitle(r)} <span class="sub">${esc(r.kind || "")}</span></li>`).join("")}</ul>` : `<div class="note">등록된 문서가 없습니다.</div>`}</div>
+        <div><h4>관계자</h4>${people.length ? `<ul>${people.slice(0,5).map(p => `<li>${esc(p.name)} <span class="sub">${esc([p.org, p.role].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>` : `<div class="note">등록된 관계자가 없습니다.</div>`}</div>
+      </div></div>`;
+  }
+
+  document.addEventListener("click", async e => {
     const v = e.target.closest("[data-view]"), t = e.target.closest("[data-task]");
-    if (v){ S.view = v.dataset.view; S.task = null; render(); }
+    const f = e.target.closest("[data-filter]"), rm = e.target.closest("[data-rm]"), cp = e.target.closest("[data-copy]");
+    if (f){ S.filter = f.dataset.filter || null; render(); return; }
+    if (cp){
+      const txt = cp.dataset.copy;
+      try { await navigator.clipboard.writeText(txt); cp.textContent = "복사됨"; }
+      catch(_) { const s = cp.previousElementSibling; const rg = document.createRange(); rg.selectNodeContents(s); getSelection().removeAllRanges(); getSelection().addRange(rg); cp.textContent = "선택됨"; }
+      setTimeout(() => { cp.textContent = "복사"; }, 1500); return;
+    }
+    if (rm){
+      const key = rm.dataset.rm;
+      if (S.armed !== key){ S.armed = key; render(); return; }
+      S.armed = null;
+      const [col, id] = key.split(":");
+      if (db) try { await db.collection(col).doc(id).delete(); } catch(err){ rm.textContent = "삭제 실패: 권한을 확인하세요"; return; }
+      render(); return;
+    }
+    if (S.armed){ S.armed = null; render(); }
+    if (v){ S.view = v.dataset.view; S.task = null; S.filter = null; $("lsForm").hidden = true; render(); }
     else if (t){ S.view = "timeline"; S.task = t.dataset.task; render(); window.scrollTo(0,0); }
   });
   $("q").addEventListener("input", e => { S.q = e.target.value.trim().toLowerCase(); if (S.q && S.view === "overview") S.view = "timeline"; render(); });
@@ -244,6 +395,21 @@ form.add .wide{grid-column:1/-1}
     if (S.task) $("fTask").value = S.task;
     $("formMsg").textContent = db ? "" : "로그인한 편집자만 저장할 수 있습니다.";
   });
+  $("lsAddBtn").addEventListener("click", () => {
+    buildForm(); $("lsForm").hidden = false;
+    $("lsMsg").textContent = db ? "" : "로그인한 편집자만 저장할 수 있습니다.";
+  });
+  $("lsForm").addEventListener("click", e => { if (e.target.id === "lsCancel") $("lsForm").hidden = true; });
+  $("lsForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const name = S.view, V = VIEWS[name];
+    if (!db){ $("lsMsg").textContent = "저장소에 연결되지 않아 저장할 수 없습니다."; return; }
+    const row = { createdAt: new Date().toISOString() };
+    V.fields.forEach(f => { const v = $("ls-" + f.k).value.trim(); if (v) row[f.k] = v; });
+    $("lsMsg").textContent = "저장 중…";
+    try { await db.collection(name).add(row); $("lsForm").hidden = true; }
+    catch(err){ $("lsMsg").textContent = "저장하지 못했습니다: " + (err && err.code === "permission_denied" ? "편집 권한이 없습니다." : (err && err.message) || "알 수 없는 오류"); }
+  });
   $("cancelAdd").addEventListener("click", () => { $("addForm").hidden = true; });
   $("addForm").addEventListener("submit", async e => {
     e.preventDefault();
@@ -261,7 +427,7 @@ form.add .wide{grid-column:1/-1}
     const sub = (name, key) => db.collection(name).onSnapshot(snap => {
       S[key] = snap.docs.map(d => Object.assign({id: d.id}, d.data())); render();
     });
-    sub("tasks","tasks"); sub("actions","actions"); sub("milestones","milestones");
+    ["tasks","actions","milestones"].concat(Object.keys(VIEWS)).forEach(k => sub(k, k));
     db.doc("config/office").onSnapshot(d => { S.config = d.exists ? d.data() : {}; render(); });
   })();
 })();
