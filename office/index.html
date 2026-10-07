@@ -87,6 +87,10 @@ form.add label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:v
 form.add input,form.add select,form.add textarea{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 9px;color:var(--fg)}
 form.add .wide{grid-column:1/-1}
 .note{font-size:12px;color:var(--muted);margin-top:8px}
+.review{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:13px}
+.review .links{display:flex;gap:6px;flex-wrap:wrap}
+.chip.auto{color:var(--warn);background:var(--panel-2)}
+.okbtn{background:none;border:1px solid var(--line);border-radius:4px;font-size:11px;padding:0 7px;margin-left:6px;cursor:pointer;color:var(--ok)}
 .filters{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 4px}
 .fbtn{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 11px;font-size:12px;cursor:pointer;color:var(--muted)}
 .fbtn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
@@ -147,6 +151,7 @@ form.add .wide{grid-column:1/-1}
       <h1 id="title">현지거점 사무소</h1>
       <p class="lead" id="desc">과업주제별 연락·실행·지원·통번역·행사 이력을 한곳에서 관리합니다.</p>
 
+      <div class="review" id="reviewBanner" hidden></div>
       <div class="kpis">
         <div class="kpi"><span class="tag">ACTIONS</span><div class="v" id="kActions">0</div><span class="u">건</span><p>기준일 이후 정리된 수행 액션</p></div>
         <div class="kpi"><span class="tag">DOCUMENTS</span><div class="v" id="kDocs">0</div><span class="u">종</span><p>문서함에 등록된 문서 (MOM·MOU·RD·PD 등)</p></div>
@@ -234,8 +239,12 @@ form.add .wide{grid-column:1/-1}
   const taskName = id => (S.tasks.find(t => t.id === id) || {}).name || "미분류";
   const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : "";
 
+  // Claude가 메일·드라이브·캘린더에서 자동으로 가져온 항목(source:auto)은 사람이 확인할 때까지 '검토 필요'로 표시
+  const needsReview = r => r.source === "auto" && !r.reviewed;
+  const reviewMark = (col, r) => needsReview(r) ? `<span class="chip auto">자동 수집 · 검토 필요</span><button class="okbtn" type="button" data-ok="${esc(col + ":" + r.id)}">확인</button>` : "";
   function matches(a){
     if (S.task && a.task !== S.task) return false;
+    if (S.filter === "__review" && !needsReview(a)) return false;
     if (!S.q) return true;
     const hay = [a.title, a.detail, a.type, taskName(a.task)].join(" ").toLowerCase();
     return hay.includes(S.q);
@@ -252,6 +261,11 @@ form.add .wide{grid-column:1/-1}
     $("kActions").textContent = S.actions.length;
     $("nActions").textContent = S.actions.length;
     $("kDocs").textContent = S.documents.length;
+    const revCols = [["actions","액션"],["documents","문서"],["library","자료"],["contacts","관계자"],["reports","보고서"]]
+      .map(([k,l]) => [k, l, S[k].filter(needsReview).length]).filter(x => x[2]);
+    const revTotal = revCols.reduce((n,x) => n + x[2], 0);
+    $("reviewBanner").hidden = !revTotal;
+    $("reviewBanner").innerHTML = revTotal ? `<span>Claude가 자동으로 가져온 <b>${revTotal}</b>건이 검토를 기다립니다.</span><span class="links">${revCols.map(([k,l,n]) => `<button class="fbtn" data-review="${k}">${l} ${n}</button>`).join("")}</span>` : "";
     Object.keys(VIEWS).forEach(k => { $("n-" + k).textContent = S[k].length; });
     if (base){ $("kSince").textContent = "D+" + days(base, today()); $("kSinceP").textContent = ymd(c.baseDate) + " 이후 경과"; }
 
@@ -281,12 +295,12 @@ form.add .wide{grid-column:1/-1}
     if (VIEWS[S.view]) renderList();
     const t = S.tasks.find(x => x.id === S.task);
     renderTaskHead(t);
-    $("tlTitle").textContent = t ? t.name : "전체 타임라인";
+    $("tlTitle").textContent = (t ? t.name : "전체 타임라인") + (S.filter === "__review" ? " · 검토 필요" : "");
     $("tlEyebrow").textContent = t ? "— " + (t.kind || "Task") + " —" : "— Timeline —";
     const list = S.actions.filter(matches).sort((a,b) => String(b.date).localeCompare(String(a.date)));
     $("tl").innerHTML = list.length ? list.map(a => {
       const u = safeUrl(a.url);
-      return `<div class="tl-item"><div class="d">${esc(a.date)}</div><div><div class="tl-tags"><span class="chip">${esc(a.type || "액션")}</span>${S.task ? "" : `<span class="chip">${esc(taskName(a.task))}</span>`}</div><b>${u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(a.title)}</a>` : esc(a.title)}</b>${a.detail ? `<div class="sub">${esc(a.detail)}</div>` : ""}</div></div>`;
+      return `<div class="tl-item"><div class="d">${esc(a.date)}</div><div><div class="tl-tags"><span class="chip">${esc(a.type || "액션")}</span>${S.task ? "" : `<span class="chip">${esc(taskName(a.task))}</span>`}${reviewMark("actions", a)}</div><b>${u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(a.title)}</a>` : esc(a.title)}</b>${a.detail ? `<div class="sub">${esc(a.detail)}</div>` : ""}</div></div>`;
     }).join("") : `<div class="empty">${S.q || S.task ? "조건에 맞는 액션이 없습니다." : "기록된 액션이 없습니다. “+ 액션 기록”으로 첫 항목을 추가하세요."}</div>`;
   }
 
@@ -296,9 +310,9 @@ form.add .wide{grid-column:1/-1}
   function cell(name, key, r){
     if (key === "date") return `<td class="d">${esc(r.date || "")}</td>`;
     if (key === "task") return `<td>${r.task ? `<button class="fbtn" data-task="${esc(r.task)}">${esc(taskName(r.task))}</button>` : ""}</td>`;
-    if (key === "title") return `<td><b>${linkTitle(r)}</b>${r.note || r.summary ? `<div class="sub">${esc(r.note || r.summary)}</div>` : ""}</td>`;
+    if (key === "title") return `<td><b>${linkTitle(r)}</b>${reviewMark(name, r)}${r.note || r.summary ? `<div class="sub">${esc(r.note || r.summary)}</div>` : ""}</td>`;
     if (key === "kind" || key === "category") return `<td>${r[key] ? `<span class="chip">${esc(r[key])}</span>` : ""}</td>`;
-    if (name === "contacts" && key === "name") return `<td><b>${esc(r.name)}</b>${r.side ? `<div class="sub">${esc(r.side)}</div>` : ""}</td>`;
+    if (name === "contacts" && key === "name") return `<td><b>${esc(r.name)}</b>${reviewMark(name, r)}${r.side ? `<div class="sub">${esc(r.side)}</div>` : ""}</td>`;
     if (name === "contacts" && key === "org") return `<td>${esc(r.org)}${r.role ? `<div class="sub">${esc(r.role)}</div>` : ""}${r.note ? `<div class="sub">${esc(r.note)}</div>` : ""}</td>`;
     if (name === "contacts" && key === "phone") return `<td>${[r.phone, r.email].filter(Boolean).map(x => `<div><span class="sel">${esc(x)}</span><button class="copy" type="button" data-copy="${esc(x)}">복사</button></div>`).join("")}</td>`;
     return `<td>${esc(r[key] || "")}</td>`;
@@ -309,10 +323,12 @@ form.add .wide{grid-column:1/-1}
     $("lsTitle").textContent = V.title; $("lsEyebrow").textContent = "— " + V.eyebrow + " —";
     $("lsLead").textContent = V.lead; $("lsAddBtn").textContent = V.add;
     const groups = [...new Set(S[name].map(r => r[V.group]).filter(Boolean))];
-    $("lsFilters").innerHTML = groups.length > 1 ? [`<button class="fbtn" data-filter="" aria-pressed="${!S.filter}">전체</button>`]
-      .concat(groups.map(g => `<button class="fbtn" data-filter="${esc(g)}" aria-pressed="${S.filter === g}">${esc(g)}</button>`)).join("") : "";
+    const nRev = S[name].filter(needsReview).length;
+    $("lsFilters").innerHTML = groups.length > 1 || nRev ? [`<button class="fbtn" data-filter="" aria-pressed="${!S.filter}">전체</button>`]
+      .concat(groups.map(g => `<button class="fbtn" data-filter="${esc(g)}" aria-pressed="${S.filter === g}">${esc(g)}</button>`))
+      .concat(nRev ? [`<button class="fbtn" data-filter="__review" aria-pressed="${S.filter === "__review"}">검토 필요 ${nRev}</button>`] : []).join("") : "";
     const keys = V.fields.map(f => f.k);
-    const rows = S[name].filter(r => (!S.filter || r[V.group] === S.filter) && hit(r, keys))
+    const rows = S[name].filter(r => (!S.filter || (S.filter === "__review" ? needsReview(r) : r[V.group] === S.filter)) && hit(r, keys))
       .sort((a,b) => V.sort === "date" ? String(b.date).localeCompare(String(a.date)) : String(a[V.sort]).localeCompare(String(b[V.sort]), "ko"));
     const head = `<tr>${V.cols.map(c => `<th>${c[0]}</th>`).join("")}<th></th></tr>`;
     const body = rows.map(r => {
@@ -360,6 +376,14 @@ form.add .wide{grid-column:1/-1}
     const v = e.target.closest("[data-view]"), t = e.target.closest("[data-task]");
     const f = e.target.closest("[data-filter]"), rm = e.target.closest("[data-rm]"), cp = e.target.closest("[data-copy]");
     if (f){ S.filter = f.dataset.filter || null; render(); return; }
+    const rv = e.target.closest("[data-review]"), ok = e.target.closest("[data-ok]");
+    if (rv){ S.view = rv.dataset.review === "actions" ? "timeline" : rv.dataset.review; S.task = null; S.filter = "__review"; render(); window.scrollTo(0,0); return; }
+    if (ok){
+      const [col, id] = ok.dataset.ok.split(":");
+      ok.disabled = true;
+      if (db) try { await db.collection(col).doc(id).update({reviewed: true}); } catch(err){ ok.disabled = false; ok.textContent = "권한 없음"; }
+      return;
+    }
     if (cp){
       const txt = cp.dataset.copy;
       try { await navigator.clipboard.writeText(txt); cp.textContent = "복사됨"; }
@@ -376,7 +400,7 @@ form.add .wide{grid-column:1/-1}
     }
     if (S.armed){ S.armed = null; render(); }
     if (v){ S.view = v.dataset.view; S.task = null; S.filter = null; $("lsForm").hidden = true; render(); }
-    else if (t){ S.view = "timeline"; S.task = t.dataset.task; render(); window.scrollTo(0,0); }
+    else if (t){ S.view = "timeline"; S.task = t.dataset.task; S.filter = null; render(); window.scrollTo(0,0); }
   });
   $("q").addEventListener("input", e => { S.q = e.target.value.trim().toLowerCase(); if (S.q && S.view === "overview") S.view = "timeline"; render(); });
   $("themeBtn").addEventListener("click", () => {
