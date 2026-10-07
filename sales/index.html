@@ -1,0 +1,290 @@
+<title>영업 파이프라인 관제판</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: 관제판 — 상단 KPI 한 줄, 8단계 파이프라인 스트립, 아래 2열(딜 표 | 뜨거운 리드) */
+:root{
+  --bg:#F2F4F1; --surface:#FFFFFF; --ink:#18211D; --muted:#5D6B64; --line:#DCE2DD;
+  --accent:#0E6B60; --accent-soft:#DCEFEA; --amber:#B7791F; --amber-soft:#F7EBD3;
+  --good:#1F7A3D; --good-soft:#DDF0E2; --warn:#A86200; --warn-soft:#FBEBD0; --bad:#B42318; --bad-soft:#FBE1DE;
+  --p-listen:#7FB7AE; --p-trust:#2E8C80; --p-partner:#0B4F47;
+  --f-body:"IBM Plex Sans KR",system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111715; --surface:#19211E; --ink:#E6ECE8; --muted:#94A39B; --line:#2B3632;
+  --accent:#4FC1B1; --accent-soft:#16332E; --amber:#E2A84B; --amber-soft:#3A2C14;
+  --good:#5BC27D; --good-soft:#163222; --warn:#E8A23C; --warn-soft:#3A2A10; --bad:#F07467; --bad-soft:#3D1A17;
+  --p-listen:#3F6F68; --p-trust:#2E9C8E; --p-partner:#6FD6C6; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111715; --surface:#19211E; --ink:#E6ECE8; --muted:#94A39B; --line:#2B3632;
+  --accent:#4FC1B1; --accent-soft:#16332E; --amber:#E2A84B; --amber-soft:#3A2C14;
+  --good:#5BC27D; --good-soft:#163222; --warn:#E8A23C; --warn-soft:#3A2A10; --bad:#F07467; --bad-soft:#3D1A17;
+  --p-listen:#3F6F68; --p-trust:#2E9C8E; --p-partner:#6FD6C6; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:20px;padding-block:24px 48px;display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-size:24px;margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);margin:2px 0 0;font-size:13px}
+.tag{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.04em;padding:2px 8px;border-radius:999px;background:var(--amber-soft);color:var(--amber)}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+select{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
+select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+h2{font-size:13px;font-weight:600;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;text-transform:uppercase}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:4px;min-width:0}
+.kpi .lab{font-size:12px;color:var(--muted)}
+.kpi .val{font-size:26px;font-weight:600}
+.kpi .val small{font-size:13px;color:var(--muted);font-weight:400;margin-left:2px}
+.kpi .note{font-size:12px;color:var(--muted)}
+.meter{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent)}
+
+/* Stage strip */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
+.phases{display:grid;grid-template-columns:2fr 3fr 3fr;gap:6px;margin-bottom:6px;font-size:11px;font-weight:600;letter-spacing:.05em}
+.phases span{padding:2px 2px 4px;border-bottom:3px solid;color:var(--muted)}
+.ph-listen{border-color:var(--p-listen)} .ph-trust{border-color:var(--p-trust)} .ph-partner{border-color:var(--p-partner)}
+.stages{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
+.stage{border:1px solid var(--line);border-radius:6px;padding:10px 8px;display:grid;gap:4px;cursor:pointer;background:transparent;color:inherit;font:inherit;text-align:left;min-width:0}
+.stage:hover{border-color:var(--accent)}
+.stage[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.stage .st{font-size:11px;color:var(--muted)}
+.stage .nm{font-size:13px;font-weight:600;line-height:1.3}
+.stage .amt{font-size:15px;font-weight:600}
+.stage .cnt{font-size:11px;color:var(--muted)}
+.stage .wp{font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
+.stage .bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.stage .bar i{display:block;height:100%;background:var(--accent)}
+.strip-scroll{overflow-x:auto}
+.strip-inner{min-width:760px}
+
+/* Main grid */
+.main{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:16px;align-items:start}
+.tbl-scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:13px}
+th{font-size:11px;font-weight:600;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+.deal{font-weight:600}
+.acct{color:var(--muted);font-size:12px}
+.pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;white-space:nowrap;font-weight:500}
+.p-good{background:var(--good-soft);color:var(--good)} .p-warn{background:var(--warn-soft);color:var(--warn)} .p-bad{background:var(--bad-soft);color:var(--bad)} .p-neutral{background:var(--accent-soft);color:var(--accent)}
+.roles{display:flex;gap:3px}
+.role{font-family:var(--f-mono);font-size:10px;font-weight:600;width:22px;height:20px;display:grid;place-items:center;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+.role.on{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.role.gap{border-style:dashed;border-color:var(--bad);color:var(--bad)}
+.next{font-size:12px;color:var(--muted);margin-top:2px}
+.empty{color:var(--muted);padding:16px 8px;text-align:center}
+
+/* Leads */
+.leads{display:grid;gap:10px}
+.lead{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.lead:last-child{border-bottom:0}
+.score{font-family:var(--f-mono);font-weight:600;font-size:18px;width:44px;height:44px;border-radius:8px;display:grid;place-items:center}
+.s-hot{background:var(--bad-soft);color:var(--bad)} .s-warm{background:var(--warn-soft);color:var(--warn)} .s-cool{background:var(--accent-soft);color:var(--accent)}
+.lead .who{font-weight:600}
+.lead .sig{font-size:12px;color:var(--muted)}
+.lead .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;align-items:center}
+.legend{font-size:12px;color:var(--muted);display:grid;gap:4px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.legend b{color:var(--ink);font-weight:600}
+.src{font-size:11px;color:var(--muted)}
+footer{font-size:12px;color:var(--muted);display:grid;gap:4px}
+
+@media (max-width:960px){.main{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:420px){.wrap{padding-inline:16px}.kpi .val{font-size:22px}}
+@media (prefers-reduced-motion:no-preference){.meter i,.stage .bar i{transition:width .4s ease}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>영업 파이프라인 관제판</h1>
+      <p class="sub">기준일 <span class="num" id="today"></span> · 4분기 · 8단계 세일즈 스테이지 기준 <span class="tag">예시 데이터</span></p>
+    </div>
+    <div class="filters">
+      <select id="fOwner" aria-label="담당자"><option value="">전체 담당자</option></select>
+      <select id="fPhase" aria-label="단계 묶음">
+        <option value="">전체 단계</option>
+        <option value="Listen">Listen (1–2단계)</option>
+        <option value="Build Trust">Build Trust (3–5단계)</option>
+        <option value="Partner">Partner (6–8단계)</option>
+      </select>
+    </div>
+  </header>
+
+  <section class="kpis" aria-label="핵심 지표">
+    <div class="kpi"><span class="lab">진행 중 파이프라인</span><span class="val num" id="kPipe"></span><span class="note" id="kPipeN"></span></div>
+    <div class="kpi"><span class="lab">가중 예측 (단계별 Win% 적용)</span><span class="val num" id="kFc"></span><span class="note" id="kFcN"></span></div>
+    <div class="kpi"><span class="lab">분기 목표 달성 전망</span><span class="val num" id="kGoal"></span><div class="meter"><i id="kGoalBar"></i></div><span class="note" id="kGoalN"></span></div>
+    <div class="kpi"><span class="lab">리드 5분 내 첫 응답률</span><span class="val num" id="kSpeed"></span><span class="note" id="kSpeedN"></span></div>
+  </section>
+
+  <section class="panel" aria-label="단계별 파이프라인">
+    <h2>단계별 파이프라인 · 단계를 누르면 아래 표가 걸러집니다</h2>
+    <div class="strip-scroll"><div class="strip-inner">
+      <div class="phases"><span class="ph-listen">LISTEN</span><span class="ph-trust">BUILD TRUST</span><span class="ph-partner">PARTNER</span></div>
+      <div class="stages" id="stages"></div>
+    </div></div>
+  </section>
+
+  <div class="main">
+    <section class="panel" aria-label="딜 목록">
+      <h2 id="dealTitle">진행 중인 딜</h2>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>딜 / 고객사</th><th>단계</th><th class="r">금액(백만원)</th><th>마감 예정</th><th title="C=내부 지지자, E=예산 결정권자, T=도입 검토자">관계도 C·E·T</th><th>마지막 접촉</th></tr></thead>
+          <tbody id="deals"></tbody>
+        </table>
+      </div>
+      <p class="src">관계도: C 내부 지지자(Champion) · E 예산 결정권자(Economic Buyer) · T 도입 검토자(Technical Buyer). 점선 칸은 아직 아무도 없는 역할입니다.</p>
+    </section>
+
+    <section class="panel" aria-label="뜨거운 리드">
+      <h2>지금 연락할 리드</h2>
+      <div class="leads" id="leads"></div>
+      <div class="legend">
+        <span><b>5분 안에</b> 접촉하면 30분 뒤보다 연결 확률 100배, 자격검증 성공률 21배.</span>
+        <span><b>24시간</b>을 넘기면 1시간 내 응답보다 자격검증 확률이 60배 이상 떨어집니다.</span>
+        <span class="src">출처: MIT/InsideSales Lead Response Study, HBR “The Short Life of Online Sales Leads”</span>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <span>Win%는 8단계 세일즈 스테이지 기준값입니다: 1단계 5% · 2단계 15% · 3단계 25% · 4단계 50% · 5단계 70% · 6단계 90% · 7단계 95% · 8단계 100%.</span>
+    <span>표시된 딜·리드·담당자는 모두 화면 구성을 보여 주기 위한 예시입니다. 실제 데이터 연결은 다음 단계에서 진행합니다.</span>
+  </footer>
+</div>
+
+<script>
+const TODAY = new Date('2026-10-07T09:00:00+09:00');
+const GOAL = 4200; // 분기 목표(백만원), 예시
+
+const STAGES = [
+  {n:1,name:'기회 판단',en:'Identifying an Opportunity',phase:'Listen',win:5},
+  {n:2,name:'과제 파악',en:'Determining Problem, Impact, Ideal',phase:'Listen',win:15},
+  {n:3,name:'추진자 가치 합의',en:'Validating Benefits & Value',phase:'Build Trust',win:25},
+  {n:4,name:'결정권자 가치 합의',en:'Confirming Value with Power',phase:'Build Trust',win:50},
+  {n:5,name:'가격 협상·최종 합의',en:'Negotiating & Mutual Plan',phase:'Build Trust',win:70},
+  {n:6,name:'계약 체결 절차',en:'Finalizing Closure',phase:'Partner',win:90},
+  {n:7,name:'서류 미비 대응',en:'Pending',phase:'Partner',win:95},
+  {n:8,name:'수주',en:'Closed',phase:'Partner',win:100},
+];
+
+// 예시 딜. amount 단위: 백만원. roles: [Champion, Economic Buyer, Technical Buyer]
+const DEALS = [
+  {deal:'MES 고도화 2차',acct:'한빛정밀',owner:'김서연',stage:4,amount:820,close:'2026-11-20',roles:[1,1,0],last:'2026-10-06',next:'기술 검토자 데모 일정 확정'},
+  {deal:'품질 데이터 플랫폼',acct:'대성오토텍',owner:'박지훈',stage:5,amount:640,close:'2026-10-31',roles:[1,1,1],last:'2026-10-05',next:'최종 견적·도입 일정 합의'},
+  {deal:'설비 예지보전 PoC',acct:'세진화학',owner:'이도윤',stage:2,amount:180,close:'2026-12-15',roles:[1,0,0],last:'2026-09-14',next:'현업 인터뷰 2건 잡기'},
+  {deal:'스마트공장 수준확인',acct:'미래금속',owner:'김서연',stage:3,amount:310,close:'2026-12-05',roles:[1,0,1],last:'2026-09-30',next:'ROI 자료 재무팀 전달'},
+  {deal:'전사 ERP 연동',acct:'동아패키징',owner:'박지훈',stage:6,amount:950,close:'2026-10-24',roles:[1,1,1],last:'2026-10-07',next:'계약서 법무 검토 회신 받기'},
+  {deal:'창고 자동화 컨설팅',acct:'코리아로지스',owner:'이도윤',stage:1,amount:120,close:'2027-01-20',roles:[0,0,0],last:'2026-10-02',next:'ICP 적합도 확인 콜'},
+  {deal:'에너지 모니터링',acct:'그린텍스',owner:'정하은',stage:4,amount:420,close:'2026-11-28',roles:[1,0,1],last:'2026-09-12',next:'임원 미팅 재요청'},
+  {deal:'라인 비전검사',acct:'한빛정밀',owner:'정하은',stage:7,amount:260,close:'2026-10-15',roles:[1,1,1],last:'2026-10-06',next:'사업자 등록 서류 보완'},
+  {deal:'MES 신규 도입',acct:'대한주조',owner:'김서연',stage:2,amount:380,close:'2026-12-20',roles:[1,0,0],last:'2026-10-01',next:'현행 공정 진단 요청'},
+  {deal:'유지보수 갱신',acct:'세진화학',owner:'박지훈',stage:8,amount:150,close:'2026-10-03',roles:[1,1,1],last:'2026-10-03',next:'주문서 담당 부서 제출 완료'},
+  {deal:'공정 데이터 수집',acct:'남해조선기자재',owner:'정하은',stage:3,amount:540,close:'2026-12-10',roles:[0,1,0],last:'2026-09-25',next:'내부 지지자 후보 확보'},
+  {deal:'품질 이력 추적',acct:'미래금속',owner:'이도윤',stage:5,amount:290,close:'2026-11-07',roles:[1,1,0],last:'2026-10-04',next:'보안 검토 담당자 지정 요청'},
+];
+
+// 예시 리드. signalAt: 신호 발생 시각, respondedAt: 첫 응답 시각(없으면 미응답)
+const LEADS = [
+  {who:'박준호 팀장',acct:'서진테크',score:92,signal:'가격 페이지 3회 재방문, 도입사례 PDF 다운로드',signalAt:'2026-10-07T08:56:00+09:00',respondedAt:null,owner:'김서연'},
+  {who:'최유나 매니저',acct:'에이원소재',score:84,signal:'웨비나 참석 후 데모 요청 폼 작성',signalAt:'2026-10-07T08:20:00+09:00',respondedAt:null,owner:'박지훈'},
+  {who:'한상우 이사',acct:'대륙기계',score:77,signal:'뉴스레터 클릭 후 MES 비교 페이지 체류 6분',signalAt:'2026-10-06T15:10:00+09:00',respondedAt:null,owner:'이도윤'},
+  {who:'오세린 책임',acct:'유니켐',score:68,signal:'제품 소개 메일 2회 열람',signalAt:'2026-10-06T10:02:00+09:00',respondedAt:'2026-10-06T10:05:00+09:00',owner:'정하은'},
+  {who:'문태경 부장',acct:'신성정공',score:55,signal:'박람회 부스 명함 등록',signalAt:'2026-10-05T14:00:00+09:00',respondedAt:'2026-10-06T11:30:00+09:00',owner:'김서연'},
+];
+// 지난 30일 리드 응답 이력(예시): 응답까지 걸린 분
+const RESPONSE_MIN = [3,2,4,12,1,45,5,3,90,2,4,8,1,30,2,1500,4,3,6,2];
+
+const $ = s => document.querySelector(s);
+const fmt = n => Math.round(n).toLocaleString('ko-KR');
+const stageOf = n => STAGES[n-1];
+const daysSince = d => Math.floor((TODAY - new Date(d+'T09:00:00+09:00'))/86400000);
+const minsSince = iso => Math.max(0,Math.round((TODAY - new Date(iso))/60000));
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+let selStage = 0;
+$('#today').textContent = '2026-10-07';
+[...new Set(DEALS.map(d=>d.owner))].forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o;$('#fOwner').append(op)});
+
+function filtered(){
+  const o=$('#fOwner').value, p=$('#fPhase').value;
+  return DEALS.filter(d=>(!o||d.owner===o)&&(!p||stageOf(d.stage).phase===p));
+}
+
+function render(){
+  const ds = filtered();
+  const open = ds.filter(d=>d.stage<8), won = ds.filter(d=>d.stage===8);
+  const pipe = open.reduce((a,d)=>a+d.amount,0);
+  const wonAmt = won.reduce((a,d)=>a+d.amount,0);
+  const fc = open.reduce((a,d)=>a+d.amount*stageOf(d.stage).win/100,0);
+  $('#kPipe').innerHTML = fmt(pipe)+'<small>백만원</small>';
+  $('#kPipeN').textContent = `진행 ${open.length}건 · 수주 ${won.length}건(${fmt(wonAmt)})`;
+  $('#kFc').innerHTML = fmt(fc+wonAmt)+'<small>백만원</small>';
+  $('#kFcN').textContent = `수주 ${fmt(wonAmt)} + 가중 ${fmt(fc)}`;
+  const pct = (fc+wonAmt)/GOAL*100;
+  $('#kGoal').innerHTML = pct.toFixed(0)+'<small>%</small>';
+  $('#kGoalBar').style.width = Math.min(100,pct)+'%';
+  $('#kGoalN').textContent = `분기 목표 ${fmt(GOAL)}백만원 (예시)`;
+  const fast = RESPONSE_MIN.filter(m=>m<=5).length;
+  $('#kSpeed').innerHTML = Math.round(fast/RESPONSE_MIN.length*100)+'<small>%</small>';
+  $('#kSpeedN').textContent = `최근 30일 ${RESPONSE_MIN.length}건 중 ${fast}건 · 24시간 초과 ${RESPONSE_MIN.filter(m=>m>1440).length}건`;
+
+  // stage strip
+  const max = Math.max(1,...STAGES.map(s=>ds.filter(d=>d.stage===s.n).reduce((a,d)=>a+d.amount,0)));
+  $('#stages').innerHTML = STAGES.map(s=>{
+    const items = ds.filter(d=>d.stage===s.n), amt = items.reduce((a,d)=>a+d.amount,0);
+    return `<button class="stage" type="button" data-n="${s.n}" aria-pressed="${selStage===s.n}" title="${esc(s.en)}">
+      <span class="st">${s.n}단계</span><span class="nm">${s.name}</span>
+      <span class="amt num">${fmt(amt)}</span><span class="cnt">${items.length}건</span>
+      <span class="bar"><i style="width:${amt/max*100}%"></i></span>
+      <span class="wp"><span>Win</span><span class="num">${s.win}%</span></span></button>`;
+  }).join('');
+
+  // deals table
+  const rows = ds.filter(d=>selStage?d.stage===selStage:d.stage<8)
+    .sort((a,b)=>b.stage-a.stage||b.amount-a.amount);
+  $('#dealTitle').textContent = selStage ? `${selStage}단계 · ${stageOf(selStage).name}` : '진행 중인 딜';
+  $('#deals').innerHTML = rows.length ? rows.map(d=>{
+    const s=stageOf(d.stage), ago=daysSince(d.last);
+    const lastPill = ago>=21?`<span class="pill p-bad">${ago}일 무응답</span>`:ago>=7?`<span class="pill p-warn">${ago}일 전</span>`:`<span class="pill p-good">${ago===0?'오늘':ago+'일 전'}</span>`;
+    const dl = daysSince(d.close)*-1;
+    const closeTxt = d.stage===8?'수주 완료':dl<0?`<span class="pill p-bad">${-dl}일 지남</span>`:dl<=14?`<span class="pill p-warn">D-${dl}</span>`:`D-${dl}`;
+    const roles = ['C','E','T'].map((r,i)=>`<span class="role ${d.roles[i]?'on':(d.stage>=3?'gap':'')}">${r}</span>`).join('');
+    return `<tr><td><div class="deal">${esc(d.deal)}</div><div class="acct">${esc(d.acct)} · ${esc(d.owner)}</div><div class="next">다음 액션: ${esc(d.next)}</div></td>
+      <td><span class="pill p-neutral">${s.n}. ${s.name}</span></td>
+      <td class="r num">${fmt(d.amount)}</td>
+      <td><div class="num">${d.close.slice(5)}</div><div class="acct">${closeTxt}</div></td>
+      <td><div class="roles">${roles}</div></td>
+      <td>${lastPill}</td></tr>`;
+  }).join('') : `<tr><td colspan="6" class="empty">조건에 맞는 딜이 없습니다.</td></tr>`;
+
+  // leads
+  const o=$('#fOwner').value;
+  const ls = LEADS.filter(l=>!o||l.owner===o).sort((a,b)=>(!!a.respondedAt-!!b.respondedAt)||b.score-a.score);
+  $('#leads').innerHTML = ls.length ? ls.map(l=>{
+    const cls = l.score>=80?'s-hot':l.score>=60?'s-warm':'s-cool';
+    let t;
+    if(l.respondedAt){const m=Math.round((new Date(l.respondedAt)-new Date(l.signalAt))/60000);
+      t = m<=5?`<span class="pill p-good">${m}분 만에 응답</span>`:m<=60?`<span class="pill p-warn">${m}분 만에 응답</span>`:`<span class="pill p-bad">${Math.round(m/60)}시간 만에 응답</span>`;}
+    else {const m=minsSince(l.signalAt);
+      t = m<=5?`<span class="pill p-bad">미응답 · ${m}분 경과, 지금 연락</span>`:m<=60?`<span class="pill p-bad">미응답 · ${m}분 경과</span>`:`<span class="pill p-bad">미응답 · ${Math.round(m/60)}시간 경과</span>`;}
+    return `<div class="lead"><div class="score ${cls}">${l.score}</div><div style="min-width:0">
+      <div class="who">${esc(l.who)} <span class="acct">${esc(l.acct)}</span></div>
+      <div class="sig">${esc(l.signal)}</div><div class="meta">${t}<span class="src">담당 ${esc(l.owner)}</span></div></div></div>`;
+  }).join('') : `<p class="empty">이 담당자에게 배정된 리드가 없습니다.</p>`;
+}
+
+$('#stages').addEventListener('click',e=>{const b=e.target.closest('.stage');if(!b)return;const n=+b.dataset.n;selStage=selStage===n?0:n;render()});
+$('#fOwner').addEventListener('change',render);
+$('#fPhase').addEventListener('change',()=>{selStage=0;render()});
+render();
+</script>
